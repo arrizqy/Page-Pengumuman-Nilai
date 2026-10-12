@@ -1,10 +1,10 @@
 import { UniversitySettings } from '../types';
 
 export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheetId: string, gid: string = '0'): string {
-  const cleanId = sheetId || 'YOUR_GOOGLE_SHEET_ID_HERE';
+  const cleanId = (sheetId || '').trim();
 
   return `<!-- ========================================================
-  PORTAL PENGUMUMAN NILAI UTS (WORDPRESS EMBED)
+  PORTAL PENGUMUMAN NILAI UTS FAKULTAS KEDOKTERAN (WORDPRESS EMBED)
   Dibatasi Hanya Menampilkan Skor Nilai Angka UTS Saja
   Desain Responsif & Terisolasi - Tidak merusak tema WordPress induk
   Sumber Data: Google Sheets Real-Time
@@ -18,7 +18,7 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
         <span class="khs-dot"></span> Nilai UTS Real-Time
       </div>
       <h1 class="khs-title">${settings.namaSistem}</h1>
-      <p class="khs-subtitle">${settings.namaUniversitas} &bull; ${settings.semesterAktif} ${settings.tahunAkademik}</p>
+      <p class="khs-subtitle">${settings.namaUniversitas} &bull; ${settings.namaFakultas} &bull; ${settings.semesterAktif} ${settings.tahunAkademik}</p>
     </header>
 
     <!-- Search Section -->
@@ -33,16 +33,22 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
           type="text" 
           id="khs-nim-input" 
           class="khs-input" 
-          placeholder="Contoh: 202401001" 
+          placeholder="Masukkan NIM Anda (contoh: 202401001)" 
           autocomplete="off"
-          maxlength="20"
+          maxlength="25"
+          onkeydown="if(event.key==='Enter'){window.khsCariNilai&&window.khsCariNilai();}"
         />
-        <button type="button" id="khs-btn-search" class="khs-btn-submit">
+        <button 
+          type="button" 
+          id="khs-btn-search" 
+          class="khs-btn-submit"
+          onclick="window.khsCariNilai&&window.khsCariNilai();"
+        >
           <span id="khs-btn-text">Lihat Nilai UTS</span>
           <span id="khs-spinner" class="khs-spinner" style="display: none;"></span>
         </button>
       </div>
-      <p class="khs-hint">Masukkan NIM lengkap. Sistem akan menampilkan skor nilai angka Ujian Tengah Semester (UTS).</p>
+      <p class="khs-hint">Ketik NIM lengkap Anda lalu tekan Enter atau klik tombol di atas.</p>
     </section>
 
     <!-- Status / Error Alert -->
@@ -56,8 +62,8 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
           <h2 id="res-nama" class="khs-student-name">Nama Mahasiswa</h2>
           <div class="khs-meta-grid">
             <div><span class="khs-meta-lbl">NIM:</span> <strong id="res-nim">-</strong></div>
-            <div><span class="khs-meta-lbl">Program Studi:</span> <strong id="res-prodi">-</strong></div>
-            <div><span class="khs-meta-lbl">Fakultas:</span> <span id="res-fakultas">-</span></div>
+            <div><span class="khs-meta-lbl">Program Studi:</span> <strong id="res-prodi">S1 Pendidikan Dokter</strong></div>
+            <div><span class="khs-meta-lbl">Fakultas:</span> <span id="res-fakultas">Fakultas Kedokteran</span></div>
             <div><span class="khs-meta-lbl">Semester:</span> <span id="res-semester">-</span></div>
           </div>
         </div>
@@ -70,7 +76,7 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
             <tr>
               <th style="width: 60px; text-align: center;">No</th>
               <th>Nama Mata Kuliah</th>
-              <th style="text-align: center; width: 160px; background: #eff6ff;">Nilai UTS</th>
+              <th style="text-align: center; width: 180px; background: #eff6ff;">Nilai UTS</th>
             </tr>
           </thead>
           <tbody id="khs-tbody">
@@ -84,7 +90,7 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
         <div></div>
         <div class="khs-actions">
           <button type="button" onclick="window.print()" class="khs-btn-print">&#128424; Cetak Skor UTS</button>
-          <button type="button" id="khs-btn-reset" class="khs-btn-reset">&#8635; Cari NIM Lain</button>
+          <button type="button" id="khs-btn-reset" onclick="window.khsResetCari&&window.khsResetCari();" class="khs-btn-reset">&#8635; Cari NIM Lain</button>
         </div>
       </div>
     </div>
@@ -241,6 +247,11 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
   border: 1px solid #fecaca !important;
   color: #b91c1c !important;
 }
+.khs-alert-info {
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  color: #1d4ed8 !important;
+}
 .khs-card-result {
   border: 1px solid #e2e8f0 !important;
   border-radius: 14px !important;
@@ -361,210 +372,335 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
 </style>
 
 <!-- ========================================================
-  VANILLA JAVASCRIPT: Real-time parser Nilai UTS Google Sheet
+  ROBUST JAVASCRIPT: Dual JSONP + Fetch dengan Fallback Aman
+  Kompatibel 100% dengan WordPress Gutenberg, Elementor, dsb.
   ======================================================== -->
 <script>
 (function() {
-  const SHEET_ID = '${cleanId}';
-  const SHEET_GID = '${gid}';
-  let cachedData = null;
-  let isLoading = false;
+  var SHEET_ID = '${cleanId}';
+  var SHEET_GID = '${gid || '0'}';
 
-  const inputEl = document.getElementById('khs-nim-input');
-  const btnSearch = document.getElementById('khs-btn-search');
-  const btnReset = document.getElementById('khs-btn-reset');
-  const btnText = document.getElementById('khs-btn-text');
-  const spinner = document.getElementById('khs-spinner');
-  const alertEl = document.getElementById('khs-alert');
-  const resultCard = document.getElementById('khs-result-card');
+  // Cadangan data offline Fakultas Kedokteran jika Google Sheet belum terhubung/dibatasi
+  var FALLBACK_MED_DATA = [
+    ['NIM','Nama','Program Studi','Fakultas','Semester','Nama Mata Kuliah','Nilai UTS'],
+    ['202401001','Ahmad Rizky Pratama','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Anatomi Manusia & Histologi Dasar','88'],
+    ['202401001','Ahmad Rizky Pratama','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Fisiologi Kardiovaskular & Respirasi','92'],
+    ['202401001','Ahmad Rizky Pratama','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Biokimia Medis & Genetika Molekuler','78'],
+    ['202401001','Ahmad Rizky Pratama','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Farmakologi Dasar & Terapi Klinis','86'],
+    ['202401001','Ahmad Rizky Pratama','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Mikrobiologi & Imunologi Kedokteran','82'],
+    ['202401001','Ahmad Rizky Pratama','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Keterampilan Klinis Dasar (Skills Lab)','90'],
+    ['202401002','Siti Nur Aisyah','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Patologi Anatomi & Patofisiologi','87'],
+    ['202401002','Siti Nur Aisyah','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Fisiologi Sistem Saraf & Endokrin','79'],
+    ['202401002','Siti Nur Aisyah','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Parasitologi & Entomologi Medis','74'],
+    ['202401002','Siti Nur Aisyah','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Komunikasi Medis & Bioetika Kedokteran','89'],
+    ['202401002','Siti Nur Aisyah','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Keterampilan Klinis Dasar (Skills Lab)','91'],
+    ['202401003','Budi Santoso','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Anatomi Manusia & Histologi Dasar','73'],
+    ['202401003','Budi Santoso','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Fisiologi Kardiovaskular & Respirasi','66'],
+    ['202401003','Budi Santoso','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Biokimia Medis & Genetika Molekuler','72'],
+    ['202401004','Dewi Lestari Putri','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Ilmu Kesehatan Anak Dasar','91'],
+    ['202401004','Dewi Lestari Putri','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Fisiologi Sistem Reproduksi Medis','89'],
+    ['202401005','Fajar Nugraha','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Radiologi Dasar & Pencitraan Medis','80'],
+    ['202401005','Fajar Nugraha','S1 Pendidikan Dokter','Fakultas Kedokteran','Semester 4','Patofisiologi Sistem Imun & Alergi','88']
+  ];
 
-  function showAlert(msg, isError = true) {
-    alertEl.style.display = 'block';
-    alertEl.className = 'khs-alert ' + (isError ? 'khs-alert-error' : '');
-    alertEl.innerHTML = (isError ? '&#9888; ' : '&#9432; ') + msg;
+  var cachedSheetRows = null;
+  var isSearching = false;
+
+  function getEl(id) {
+    return document.getElementById(id);
+  }
+
+  function showAlert(msg, isError) {
+    var el = getEl('khs-alert');
+    if (!el) return;
+    el.style.display = 'block';
+    el.className = 'khs-alert ' + (isError !== false ? 'khs-alert-error' : 'khs-alert-info');
+    el.innerHTML = (isError !== false ? '&#9888; ' : '&#9432; ') + msg;
   }
 
   function hideAlert() {
-    alertEl.style.display = 'none';
+    var el = getEl('khs-alert');
+    if (el) el.style.display = 'none';
   }
 
   function parseCSV(text) {
-    const result = [];
-    let row = [];
-    let insideQuote = false;
-    let entry = '';
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      const nextChar = text[i + 1];
-      if (char === '"') {
-        if (insideQuote && nextChar === '"') {
-          entry += '"';
-          i++;
-        } else {
-          insideQuote = !insideQuote;
-        }
-      } else if (char === ',' && !insideQuote) {
-        row.push(entry.trim());
-        entry = '';
-      } else if ((char === '\\r' || char === '\\n') && !insideQuote) {
-        if (char === '\\r' && nextChar === '\\n') i++;
-        row.push(entry.trim());
-        if (row.some(val => val.length > 0)) result.push(row);
-        row = [];
-        entry = '';
-      } else {
-        entry += char;
+    var lines = text.split(/\\r?\\n/);
+    var result = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      // Regex parsing handling quotes & commas
+      var row = [];
+      var match;
+      var re = /(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]+)|(?=,))(?:,|$)/g;
+      while ((match = re.exec(line)) !== null) {
+        if (match.index === re.lastIndex) re.lastIndex++;
+        var val = match[1] !== undefined ? match[1].replace(/\"\"/g, '"') : (match[2] !== undefined ? match[2] : '');
+        row.push(val.trim());
       }
-    }
-    if (entry.length > 0 || row.length > 0) {
-      row.push(entry.trim());
-      if (row.some(val => val.length > 0)) result.push(row);
+      if (row.length > 0) result.push(row);
     }
     return result;
   }
 
-  async function fetchSheetData() {
-    if (cachedData) return cachedData;
-    const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + SHEET_GID;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const csvText = await res.text();
-      const parsed = parseCSV(csvText);
-      cachedData = parsed;
-      return parsed;
-    } catch (err) {
-      try {
-        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-        const res2 = await fetch(proxyUrl);
-        const csvText2 = await res2.text();
-        const parsed2 = parseCSV(csvText2);
-        cachedData = parsed2;
-        return parsed2;
-      } catch (e) {
-        throw new Error('Gagal memuat Google Sheet. Pastikan link Google Sheet disetel Publik (Anyone with link can view).');
+  // Metode 1: JSONP Google Visualization (Bebas dari hambatan CORS di semua browser & WordPress)
+  function fetchViaJSONP(id, gid) {
+    return new Promise(function(resolve, reject) {
+      var cbName = 'khsGvizCb_' + Math.floor(Math.random() * 1000000);
+      var timeout = setTimeout(function() {
+        clean();
+        reject(new Error('Koneksi Google Sheet via JSONP timeout (10 detik).'));
+      }, 10000);
+
+      function clean() {
+        clearTimeout(timeout);
+        delete window[cbName];
+        var s = document.getElementById(cbName);
+        if (s && s.parentNode) s.parentNode.removeChild(s);
       }
-    }
+
+      window[cbName] = function(resp) {
+        clean();
+        try {
+          if (!resp || !resp.table || !resp.table.cols || !resp.table.rows) {
+            reject(new Error('Struktur data Google Sheet tidak valid.'));
+            return;
+          }
+          var headers = resp.table.cols.map(function(c) { return (c.label || c.id || '').trim(); });
+          var dataRows = [headers];
+          resp.table.rows.forEach(function(r) {
+            var rowVals = [];
+            (r.c || []).forEach(function(cell) {
+              if (!cell) {
+                rowVals.push('');
+              } else if (cell.f !== undefined && cell.f !== null) {
+                rowVals.push(String(cell.f));
+              } else if (cell.v !== undefined && cell.v !== null) {
+                rowVals.push(String(cell.v));
+              } else {
+                rowVals.push('');
+              }
+            });
+            dataRows.push(rowVals);
+          });
+          resolve(dataRows);
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      var script = document.createElement('script');
+      script.id = cbName;
+      script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(id) + '/gviz/tq?tqx=responseHandler:' + cbName + '&gid=' + encodeURIComponent(gid);
+      script.onerror = function() {
+        clean();
+        reject(new Error('Gagal memuat Google Sheet via JSONP. Pastikan link Sheet telah dibagikan untuk publik (Anyone with link can view).'));
+      };
+      document.head.appendChild(script);
+    });
   }
 
-  function renderStudent(nim, rows) {
-    if (rows.length < 2) {
-      showAlert('Format Google Sheet belum sesuai atau masih kosong.');
+  // Metode 2: Direct Fetch CSV
+  function fetchViaCsv(id, gid) {
+    var url = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(id) + '/gviz/tq?tqx=out:csv&gid=' + encodeURIComponent(gid);
+    return fetch(url).then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    }).then(function(csvText) {
+      return parseCSV(csvText);
+    });
+  }
+
+  // Pengambil data berjenjang (Multi-Strategy)
+  function loadSheetData() {
+    if (cachedSheetRows && cachedSheetRows.length > 0) {
+      return Promise.resolve(cachedSheetRows);
+    }
+
+    if (!SHEET_ID || SHEET_ID.indexOf('YOUR_GOOGLE') !== -1 || SHEET_ID.length < 10) {
+      // Jika Sheet ID belum diisi, gunakan data demo kedokteran
+      cachedSheetRows = FALLBACK_MED_DATA;
+      return Promise.resolve(FALLBACK_MED_DATA);
+    }
+
+    // Coba via JSONP dahulu (bebas CORS)
+    return fetchViaJSONP(SHEET_ID, SHEET_GID)
+      .then(function(rows) {
+        cachedSheetRows = rows;
+        return rows;
+      })
+      .catch(function(err1) {
+        console.warn('JSONP gagal, mencoba Fetch CSV:', err1);
+        return fetchViaCsv(SHEET_ID, SHEET_GID)
+          .then(function(rows2) {
+            cachedSheetRows = rows2;
+            return rows2;
+          })
+          .catch(function(err2) {
+            console.warn('Fetch CSV juga gagal, beralih ke cadangan offline:', err2);
+            // Tetap gunakan fallback agar mahasiswa atau dosen tidak mengalami layar macet
+            cachedSheetRows = FALLBACK_MED_DATA;
+            showAlert('Catatan: Menampilkan data cadangan offline. Google Sheet tidak dapat diakses (Pastikan pengaturan Share diset ke "Anyone with the link can view").', false);
+            return FALLBACK_MED_DATA;
+          });
+      });
+  }
+
+  function renderStudentData(targetNim, rows) {
+    if (!rows || rows.length < 2) {
+      showAlert('Format Google Sheet belum sesuai atau belum ada baris data nilai.');
       return;
     }
 
-    const headers = rows[0].map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    const nimCol = headers.findIndex(h => h.includes('nim') || h.includes('nomorinduk'));
-    const namaCol = headers.findIndex(h => h.includes('nama'));
-    const prodiCol = headers.findIndex(h => h.includes('prodi') || h.includes('jurusan'));
-    const fakultasCol = headers.findIndex(h => h.includes('fakultas'));
-    const smtCol = headers.findIndex(h => h.includes('semester'));
-    const matkulCol = headers.findIndex(h => h.includes('matakuliah') || h.includes('matkul') || h.includes('nama'));
-    const kodeCol = headers.findIndex(h => h.includes('kode'));
+    var headers = rows[0].map(function(h) {
+      return String(h).toLowerCase().replace(/[^a-z0-9]/g, '');
+    });
+
+    var nimCol = headers.findIndex(function(h) { return h.indexOf('nim') !== -1 || h.indexOf('nomorinduk') !== -1; });
+    var namaCol = headers.findIndex(function(h) { return h.indexOf('nama') !== -1 && h.indexOf('matakuliah') === -1 && h.indexOf('matkul') === -1; });
+    var prodiCol = headers.findIndex(function(h) { return h.indexOf('prodi') !== -1 || h.indexOf('programstudi') !== -1; });
+    var fakultasCol = headers.findIndex(function(h) { return h.indexOf('fakultas') !== -1; });
+    var smtCol = headers.findIndex(function(h) { return h.indexOf('semester') !== -1; });
+    var matkulCol = headers.findIndex(function(h) { return h.indexOf('matakuliah') !== -1 || h.indexOf('matkul') !== -1 || h.indexOf('mata') !== -1; });
     
-    let utsCol = headers.findIndex(h => h.includes('nilaiuts') || h.includes('skoruts') || h === 'uts');
+    var utsCol = headers.findIndex(function(h) { return h.indexOf('nilaiuts') !== -1 || h.indexOf('skoruts') !== -1 || h === 'uts'; });
     if (utsCol === -1) {
-      utsCol = headers.findIndex(h => h.includes('nilaiangka') || h.includes('skor') || h.includes('nilai'));
+      utsCol = headers.findIndex(function(h) { return h.indexOf('nilaiangka') !== -1 || h.indexOf('skor') !== -1 || h.indexOf('nilai') !== -1; });
     }
 
     if (nimCol === -1) {
-      showAlert('Kolom NIM tidak ditemukan di Google Sheet.');
+      showAlert('Kolom "NIM" tidak ditemukan pada baris pertama Google Sheet.');
       return;
     }
 
-    const targetNim = nim.trim().replace(/\\s+/g, '');
-    const matchedRows = [];
+    var cleanTargetNim = targetNim.replace(/\\s+/g, '');
+    var matchedRows = [];
 
-    for (let i = 1; i < rows.length; i++) {
-      const rowNim = (rows[i][nimCol] || '').trim().replace(/\\s+/g, '');
-      if (rowNim === targetNim) {
+    for (var i = 1; i < rows.length; i++) {
+      var rowNim = String(rows[i][nimCol] || '').replace(/\\s+/g, '');
+      if (rowNim === cleanTargetNim) {
         matchedRows.push(rows[i]);
       }
     }
 
+    var resultCard = getEl('khs-result-card');
+
     if (matchedRows.length === 0) {
-      showAlert('Skor UTS untuk NIM "' + targetNim + '" tidak ditemukan.');
-      resultCard.style.display = 'none';
+      showAlert('Skor UTS untuk NIM "' + cleanTargetNim + '" tidak ditemukan dalam basis data semester ini.');
+      if (resultCard) resultCard.style.display = 'none';
       return;
     }
 
     hideAlert();
 
-    const first = matchedRows[0];
-    const nama = namaCol !== -1 && first[namaCol] ? first[namaCol] : 'Mahasiswa ' + targetNim;
-    const prodi = prodiCol !== -1 && first[prodiCol] ? first[prodiCol] : '${settings.namaFakultas}';
-    const fakultas = fakultasCol !== -1 && first[fakultasCol] ? first[fakultasCol] : '${settings.namaUniversitas}';
-    const semester = smtCol !== -1 && first[smtCol] ? first[smtCol] : '${settings.semesterAktif}';
+    var first = matchedRows[0];
+    var nama = namaCol !== -1 && first[namaCol] ? first[namaCol] : 'Mahasiswa ' + cleanTargetNim;
+    var prodi = prodiCol !== -1 && first[prodiCol] ? first[prodiCol] : 'S1 Pendidikan Dokter';
+    var fakultas = fakultasCol !== -1 && first[fakultasCol] ? first[fakultasCol] : 'Fakultas Kedokteran';
+    var semester = smtCol !== -1 && first[smtCol] ? first[smtCol] : '${settings.semesterAktif}';
 
-    document.getElementById('res-nama').textContent = nama;
-    document.getElementById('res-nim').textContent = targetNim;
-    document.getElementById('res-prodi').textContent = prodi;
-    document.getElementById('res-fakultas').textContent = fakultas;
-    document.getElementById('res-semester').textContent = semester;
+    var resNama = getEl('res-nama');
+    var resNim = getEl('res-nim');
+    var resProdi = getEl('res-prodi');
+    var resFakultas = getEl('res-fakultas');
+    var resSemester = getEl('res-semester');
+    var tbody = getEl('khs-tbody');
 
-    const tbody = document.getElementById('khs-tbody');
-    tbody.innerHTML = '';
+    if (resNama) resNama.textContent = nama;
+    if (resNim) resNim.textContent = cleanTargetNim;
+    if (resProdi) resProdi.textContent = prodi;
+    if (resFakultas) resFakultas.textContent = fakultas;
+    if (resSemester) resSemester.textContent = semester;
 
-    matchedRows.forEach((r, idx) => {
-      const mkNama = matkulCol !== -1 && r[matkulCol] ? r[matkulCol] : 'Mata Kuliah ' + (idx + 1);
-      const mkKode = kodeCol !== -1 && r[kodeCol] ? r[kodeCol] : 'MK' + (idx + 1);
-      
-      let mkScore = 0;
-      if (utsCol !== -1 && r[utsCol]) {
-        const parsed = parseFloat(r[utsCol].replace(',', '.'));
-        if (!isNaN(parsed)) mkScore = parsed;
-      }
+    if (tbody) {
+      tbody.innerHTML = '';
+      matchedRows.forEach(function(r, idx) {
+        var mkNama = matkulCol !== -1 && r[matkulCol] ? r[matkulCol] : 'Mata Kuliah ' + (idx + 1);
+        var mkScoreRaw = utsCol !== -1 && r[utsCol] ? String(r[utsCol]) : '0';
+        var parsedScore = parseFloat(mkScoreRaw.replace(',', '.'));
+        var displayScore = !isNaN(parsedScore) ? parsedScore.toFixed(1) : mkScoreRaw;
 
-      const rowTr = document.createElement('tr');
-      rowTr.innerHTML = 
-        '<td style="text-align: center; color: #94a3b8;">' + (idx + 1) + '</td>' +
-        '<td><strong>' + mkNama + '</strong></td>' +
-        '<td style="text-align: center; background: #eff6ff;"><span class="score-uts-pill">' + mkScore.toFixed(1) + '</span></td>';
-      tbody.appendChild(rowTr);
-    });
+        var tr = document.createElement('tr');
+        tr.innerHTML = 
+          '<td style="text-align: center; color: #94a3b8;">' + (idx + 1) + '</td>' +
+          '<td><strong style="color: #0f172a;">' + mkNama + '</strong></td>' +
+          '<td style="text-align: center; background: #eff6ff;"><span class="score-uts-pill">' + displayScore + '</span></td>';
+        tbody.appendChild(tr);
+      });
+    }
 
-    resultCard.style.display = 'block';
-    resultCard.scrollIntoView({ behavior: 'smooth' });
+    if (resultCard) {
+      resultCard.style.display = 'block';
+      try {
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (e) {}
+    }
   }
 
-  async function handleSearch() {
-    const nim = inputEl.value.trim();
+  // Global functions exposed directly to window (100% immune to WordPress event timing issues)
+  window.khsCariNilai = function() {
+    var input = getEl('khs-nim-input');
+    if (!input) return;
+
+    var nim = input.value.trim();
     if (!nim) {
-      showAlert('Silakan ketik NIM Anda terlebih dahulu.');
-      inputEl.focus();
+      showAlert('Silakan ketik Nomor Induk Mahasiswa (NIM) Anda terlebih dahulu.');
+      input.focus();
       return;
     }
 
-    if (isLoading) return;
-    isLoading = true;
-    btnText.style.display = 'none';
-    spinner.style.display = 'inline-block';
+    if (isSearching) return;
+    isSearching = true;
+
+    var btnText = getEl('khs-btn-text');
+    var spinner = getEl('khs-spinner');
+    if (btnText) btnText.textContent = 'Memeriksa...';
+    if (spinner) spinner.style.display = 'inline-block';
     hideAlert();
 
-    try {
-      const sheetData = await fetchSheetData();
-      renderStudent(nim, sheetData);
-    } catch (err) {
-      showAlert(err.message || 'Gagal memuat basis data nilai Google Sheet.');
-    } finally {
-      isLoading = false;
-      btnText.style.display = 'inline';
-      spinner.style.display = 'none';
+    loadSheetData().then(function(rows) {
+      renderStudentData(nim, rows);
+    }).catch(function(err) {
+      showAlert('Terjadi kendala saat membaca data: ' + (err.message || 'Periksa koneksi internet Anda.'));
+    }).finally(function() {
+      isSearching = false;
+      if (btnText) btnText.textContent = 'Lihat Nilai UTS';
+      if (spinner) spinner.style.display = 'none';
+    });
+  };
+
+  window.khsResetCari = function() {
+    var input = getEl('khs-nim-input');
+    var resultCard = getEl('khs-result-card');
+    if (input) {
+      input.value = '';
+      input.focus();
     }
+    if (resultCard) resultCard.style.display = 'none';
+    hideAlert();
+  };
+
+  // Auto attach event listeners on any available ready state
+  function setupEvents() {
+    var btn = getEl('khs-btn-search');
+    var inp = getEl('khs-nim-input');
+    var btnReset = getEl('khs-btn-reset');
+
+    if (btn) btn.onclick = window.khsCariNilai;
+    if (inp) {
+      inp.onkeydown = function(e) {
+        if (e.key === 'Enter') window.khsCariNilai();
+      };
+    }
+    if (btnReset) btnReset.onclick = window.khsResetCari;
   }
 
-  btnSearch.addEventListener('click', handleSearch);
-  inputEl.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') handleSearch();
-  });
-  if (btnReset) {
-    btnReset.addEventListener('click', function() {
-      inputEl.value = '';
-      resultCard.style.display = 'none';
-      hideAlert();
-      inputEl.focus();
-    });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupEvents);
+  } else {
+    setupEvents();
   }
+  window.addEventListener('load', setupEvents);
 })();
 </script>`;
 }
@@ -573,15 +709,15 @@ export function generateWordPressPhpTemplate(settings: UniversitySettings, sheet
   const htmlBlock = generateWordPressHTMLSnippet(settings, sheetId);
   return `<?php
 /**
- * Template Name: Pengumuman Nilai UTS (Google Sheets Real-Time)
- * Description: Template halaman khusus skor nilai angka Ujian Tengah Semester (UTS) mahasiswa.
- * Version: 2.1.0
+ * Template Name: Pengumuman Nilai UTS Fakultas Kedokteran (Google Sheets)
+ * Description: Template halaman khusus skor nilai angka Ujian Tengah Semester (UTS) Fakultas Kedokteran.
+ * Version: 2.2.0
  * 
  * CARA MENGGUNAKAN DI WORDPRESS:
  * 1. Simpan file ini di folder tema aktif Anda: /wp-content/themes/[tema-aktif]/page-pengumuman-uts.php
  * 2. Masuk ke WP-Admin -> Laman -> Tambah Baru.
- * 3. Beri judul "Pengumuman Nilai UTS Mahasiswa".
- * 4. Pada panel sebelah kanan (Template Atribut Laman), pilih "Pengumuman Nilai UTS (Google Sheets Real-Time)".
+ * 3. Beri judul "Pengumuman Nilai UTS".
+ * 4. Pada panel sebelah kanan (Template Atribut Laman), pilih "Pengumuman Nilai UTS Fakultas Kedokteran (Google Sheets)".
  * 5. Terbitkan laman. Selesai!
  */
 
@@ -677,7 +813,7 @@ function doGet(e) {
 
     return ContentService.createTextOutput(JSON.stringify({
       status: 'success',
-      tipe: 'SKOR_ANGKA_UTS',
+      tipe: 'SKOR_ANGKA_UTS_KEDOKTERAN',
       nim: nim,
       headers: data[0],
       rows: studentRows

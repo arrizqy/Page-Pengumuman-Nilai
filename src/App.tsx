@@ -293,6 +293,9 @@ export default function App() {
             settings={settings}
             setSettings={setSettings}
             sheetId={config.sheetId}
+            onSheetIdChange={(newId) => {
+              setConfig(prev => ({ ...prev, sheetId: newId, mode: newId ? 'public_csv' : 'demo' }));
+            }}
           />
         )}
 

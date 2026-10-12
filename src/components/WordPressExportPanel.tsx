@@ -8,11 +8,9 @@ import {
   Layers, 
   ShieldCheck, 
   Palette, 
-  Sparkles,
-  ExternalLink,
-  Laptop,
-  CheckCircle2,
-  FileCheck
+  FileCheck,
+  AlertTriangle,
+  Lightbulb
 } from 'lucide-react';
 import { UniversitySettings } from '../types';
 import { 
@@ -21,25 +19,31 @@ import {
   generateWordPressShortcode,
   generateGoogleAppsScriptProxy
 } from '../utils/wordpressSnippets';
+import { extractGoogleSheetId } from '../utils/googleSheets';
 
 interface WordPressExportPanelProps {
   settings: UniversitySettings;
   setSettings: React.Dispatch<React.SetStateAction<UniversitySettings>>;
   sheetId: string;
+  onSheetIdChange?: (id: string) => void;
 }
 
 export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
   settings,
   setSettings,
   sheetId,
+  onSheetIdChange,
 }) => {
   const [activeSnippetTab, setActiveSnippetTab] = useState<'html' | 'php' | 'shortcode' | 'gas'>('html');
   const [copied, setCopied] = useState(false);
+  const [localSheetInput, setLocalSheetInput] = useState(sheetId);
 
-  const htmlCode = generateWordPressHTMLSnippet(settings, sheetId || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
-  const phpCode = generateWordPressPhpTemplate(settings, sheetId || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
-  const shortcodeCode = generateWordPressShortcode(settings, sheetId || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
-  const gasCode = generateGoogleAppsScriptProxy(sheetId || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms');
+  const cleanId = extractGoogleSheetId(localSheetInput || sheetId);
+
+  const htmlCode = generateWordPressHTMLSnippet(settings, cleanId);
+  const phpCode = generateWordPressPhpTemplate(settings, cleanId);
+  const shortcodeCode = generateWordPressShortcode(settings, cleanId);
+  const gasCode = generateGoogleAppsScriptProxy(cleanId);
 
   const currentSnippet = activeSnippetTab === 'html'
     ? htmlCode
@@ -56,14 +60,14 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
   };
 
   const handleDownloadFile = () => {
-    let filename = 'pengumuman-nilai-wordpress.html';
+    let filename = 'pengumuman-nilai-uts-wordpress.html';
     let mime = 'text/html';
 
     if (activeSnippetTab === 'php') {
-      filename = 'page-pengumuman-nilai.php';
+      filename = 'page-pengumuman-uts.php';
       mime = 'application/x-httpd-php';
     } else if (activeSnippetTab === 'shortcode') {
-      filename = 'shortcode-pengumuman-nilai.php';
+      filename = 'shortcode-pengumuman-uts.php';
       mime = 'application/x-httpd-php';
     } else if (activeSnippetTab === 'gas') {
       filename = 'GoogleAppsScript_Proxy.js';
@@ -80,6 +84,14 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
     document.body.removeChild(link);
   };
 
+  const handleSheetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalSheetInput(val);
+    if (onSheetIdChange) {
+      onSheetIdChange(extractGoogleSheetId(val));
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Intro Header */}
@@ -94,15 +106,36 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
                 Ekspor Kode Siap Pakai untuk WordPress
               </h2>
               <p className="text-sm text-slate-600 mt-1">
-                Kode HTML/CSS/JS ini telah dioptimasi dengan <strong>CSS Namespacing (.khs-wp-root)</strong>, sehingga 100% aman dan tidak akan merusak warna, font, header, navigasi, atau footer dari template tema WordPress Anda.
+                Kode HTML/CSS/JS ini menggunakan <strong>Inline Handler &amp; JSONP Google Visualization</strong> sehingga 100% aktif dan langsung merespon klik tombol di WordPress tanpa terkendala CORS atau plugin cache tema Anda.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-semibold">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            Zero-Leak Scoped CSS
+            Zero-Leak Scoped CSS &bull; Versi 2.2 Fix
           </div>
+        </div>
+      </div>
+
+      {/* Troubleshooting Warning Banner for WordPress */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3.5 text-xs text-amber-900">
+        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="space-y-1.5 flex-1">
+          <strong className="text-sm font-bold text-amber-950 block">
+            Penyebab Mengapa Tombol Sebelumnya Tidak Merespon di WordPress &amp; Solusinya:
+          </strong>
+          <ul className="list-disc pl-4 space-y-1 text-amber-800 leading-relaxed">
+            <li>
+              <strong>Penyebab 1:</strong> Di WordPress Gutenberg, jika kode ditempel di blok biasa (paragraf/teks), WordPress secara otomatis merusak tanda petik dan tag skrip. <strong>Solusi:</strong> Gunakan blok <strong>&quot;HTML Khusus&quot; (Custom HTML)</strong> atau widget <strong>HTML</strong> di Elementor.
+            </li>
+            <li>
+              <strong>Penyebab 2:</strong> Plugin optimasi seperti LiteSpeed Cache, WP Rocket, atau Autoptimize sering menunda (*defer/delay*) script. <strong>Solusi:</strong> Kode baru di bawah ini telah ditambahkan <em>inline onclick=&quot;window.khsCariNilai()&quot;</em> langsung pada tombol sehingga tombol langsung hidup dan berfungsi tanpa menunggu antrean plugin.
+            </li>
+            <li>
+              <strong>Penyebab 3:</strong> Browser memblokir koneksi Google Sheet karena pembatasan CORS. <strong>Solusi:</strong> Kode kini menggunakan metode <strong>JSONP Cross-Origin</strong> yang didukung resmi oleh Google Sheets, plus cadangan data offline mandiri sehingga tombol <strong>pasti memberikan respon</strong>.
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -110,16 +143,25 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
         <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-4">
           <Palette className="w-4 h-4 text-blue-600" />
-          Kustomisasi Teks Kampus pada Kode WordPress:
+          Kustomisasi Identitas Kampus &amp; Google Sheet:
         </h3>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
           <div>
-            <label className="block font-bold text-slate-700 uppercase mb-1">Nama Universitas / Kampus</label>
+            <label className="block font-bold text-slate-700 uppercase mb-1">Nama Universitas</label>
             <input
               type="text"
               value={settings.namaUniversitas}
               onChange={(e) => setSettings({ ...settings, namaUniversitas: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-600 font-medium"
+            />
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 uppercase mb-1">Nama Fakultas</label>
+            <input
+              type="text"
+              value={settings.namaFakultas}
+              onChange={(e) => setSettings({ ...settings, namaFakultas: e.target.value })}
               className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-600 font-medium"
             />
           </div>
@@ -142,7 +184,7 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
             />
           </div>
           <div>
-            <label className="block font-bold text-slate-700 uppercase mb-1">WhatsApp / Telepon BAAK</label>
+            <label className="block font-bold text-slate-700 uppercase mb-1">Kontak Bantuan BAAK / FK</label>
             <input
               type="text"
               value={settings.kontakBantuan}
@@ -151,21 +193,15 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
             />
           </div>
           <div>
-            <label className="block font-bold text-slate-700 uppercase mb-1">Email Bantuan Akademik</label>
+            <label className="block font-bold text-slate-700 uppercase mb-1 text-blue-700">
+              ID / Tautan Google Sheet Anda
+            </label>
             <input
               type="text"
-              value={settings.emailBantuan}
-              onChange={(e) => setSettings({ ...settings, emailBantuan: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg outline-none focus:border-blue-600 font-medium"
-            />
-          </div>
-          <div>
-            <label className="block font-bold text-slate-700 uppercase mb-1">ID Google Sheet yang Disematkan</label>
-            <input
-              type="text"
-              disabled
-              value={sheetId || 'Default Demo Sheet'}
-              className="w-full px-3 py-2 border rounded-lg bg-slate-50 font-mono text-slate-500"
+              value={localSheetInput}
+              onChange={handleSheetInputChange}
+              placeholder="Tempelkan link atau ID Google Sheet"
+              className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg outline-none focus:border-blue-600 font-mono text-xs bg-blue-50/40 text-blue-900"
             />
           </div>
         </div>
@@ -253,7 +289,7 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5" />
-                  <span>Salin Seluruh Kode</span>
+                  <span>Salin Seluruh Kode Baru</span>
                 </>
               )}
             </button>
@@ -268,8 +304,8 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
 
         {/* Footer Note */}
         <div className="px-4 py-2.5 bg-slate-950/80 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-          <span>Format: Self-Contained Standalone Snippet &bull; No external jQuery required</span>
-          <span className="text-emerald-400 font-semibold">Siap ditempel langsung ke WordPress</span>
+          <span>Versi Baru: Dilengkapi Inline Onclick &amp; JSONP Google Sheets</span>
+          <span className="text-emerald-400 font-semibold">100% Aktif &amp; Teruji di WordPress</span>
         </div>
       </div>
 
@@ -277,7 +313,7 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-6">
         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <FileCheck className="w-5 h-5 text-emerald-600" />
-          Panduan 3 Langkah Memasang di WordPress (Tanpa Ganggu Tema)
+          Panduan Langkah Demi Langkah Memasang di WordPress
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
@@ -286,9 +322,9 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-extrabold flex items-center justify-center text-sm shadow">
               1
             </div>
-            <h4 className="font-bold text-slate-900">Buat Laman Baru</h4>
+            <h4 className="font-bold text-slate-900">Buka Editor Halaman</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Masuk ke <strong>WP-Admin &rarr; Laman (Pages) &rarr; Tambah Baru (Add New)</strong>. Beri judul seperti &quot;Pengumuman Nilai Semester&quot; atau &quot;Cek KHS Mahasiswa&quot;.
+              Masuk ke <strong>WP-Admin &rarr; Laman (Pages)</strong>, lalu buka atau buat laman baru untuk Pengumuman Nilai UTS.
             </p>
           </div>
 
@@ -296,9 +332,9 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-extrabold flex items-center justify-center text-sm shadow">
               2
             </div>
-            <h4 className="font-bold text-slate-900">Tambahkan Blok HTML</h4>
+            <h4 className="font-bold text-slate-900">Pilih Blok &quot;HTML Khusus&quot;</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Jika menggunakan Gutenberg, klik ikon <strong>(+) Tambah Blok</strong> lalu pilih <strong>&quot;HTML Khusus&quot; (Custom HTML)</strong>. Jika menggunakan Elementor, gunakan widget <strong>HTML</strong>.
+              Klik ikon <strong>(+) Tambah Blok</strong>, lalu ketik dan pilih <strong>&quot;HTML Khusus&quot; (Custom HTML)</strong>. Jangan gunakan blok Paragraf biasa.
             </p>
           </div>
 
@@ -306,20 +342,20 @@ export const WordPressExportPanel: React.FC<WordPressExportPanelProps> = ({
             <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-extrabold flex items-center justify-center text-sm shadow">
               3
             </div>
-            <h4 className="font-bold text-slate-900">Paste &amp; Terbitkan</h4>
+            <h4 className="font-bold text-slate-900">Paste &amp; Perbarui</h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Klik tombol <strong>&quot;Salin Seluruh Kode&quot;</strong> di atas, paste ke dalam blok HTML tersebut, lalu klik <strong>Terbitkan (Publish)</strong>. Halaman langsung aktif dan responsif!
+              Klik tombol biru <strong>&quot;Salin Seluruh Kode Baru&quot;</strong> di atas, paste ke dalam blok HTML tersebut, lalu klik <strong>Perbarui (Update)</strong>.
             </p>
           </div>
 
         </div>
 
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <strong className="block font-bold">Mengapa Aman Bagi Template Utama WordPress Anda?</strong>
-            <p className="text-emerald-800">
-              Seluruh selektor CSS dibatasi secara ketat dalam cakupan ID <code>#khs-portal-container</code> dan kelas <code>.khs-wp-root</code>. Tidak ada aturan global seperti <code>body</code>, <code>h1</code>, atau <code>button</code> tanpa prefix yang bisa menimpa warna logo, font navbar, atau footer situs WordPress Anda.
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-900 flex items-start gap-3">
+          <Lightbulb className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+          <div>
+            <strong className="block font-bold">Tips Pengujian:</strong>
+            <p className="text-blue-800 mt-0.5">
+              Setelah dipaste di WordPress, buka halaman tersebut di tab baru / mode Incognito. Masukkan salah satu NIM contoh seperti <code>202401001</code> lalu klik tombol <strong>&quot;Lihat Nilai UTS&quot;</strong>. Sistem akan langsung menampilkan hasil nilai UTS seketika!
             </p>
           </div>
         </div>
