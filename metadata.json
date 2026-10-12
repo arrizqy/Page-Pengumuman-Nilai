@@ -1,0 +1,6 @@
+{
+  "name": "Portal Pengumuman Nilai Mahasiswa WordPress",
+  "description": "Halaman pengumuman nilai mahasiswa responsif berbasis Google Sheet real-time dengan optimasi SEO dan kode isolasi WordPress.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
