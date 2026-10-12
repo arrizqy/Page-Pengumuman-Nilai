@@ -213,7 +213,7 @@ export default function App() {
         </h1>
 
         <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          Publikasi khusus skor nilai angka Ujian Tengah Semester (UTS) mahasiswa Fakultas Kedokteran. Masukkan NIM resmi Anda di bawah ini untuk melihat skor angka dan mencetak lembar hasil evaluasi UTS.
+          Publikasi khusus skor nilai angka Ujian Tengah Semester (UTS) mahasiswa Fakultas Kedokteran. Masukkan NIM resmi Anda di bawah ini untuk melihat skor angka hasil evaluasi UTS.
         </p>
 
         {/* Real-Time Database Connection Badge */}

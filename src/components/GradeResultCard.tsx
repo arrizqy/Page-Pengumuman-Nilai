@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  Printer, 
   RotateCcw, 
   BookOpen, 
   UserCheck, 
@@ -15,13 +14,12 @@ interface GradeResultCardProps {
   report: StudentReport;
   settings: UniversitySettings;
   onReset: () => void;
-  onPrint: () => void;
+  onPrint?: () => void;
 }
 
 export const GradeResultCard: React.FC<GradeResultCardProps> = ({
   report,
   onReset,
-  onPrint,
 }) => {
   const { student, courses, tanggalTerbit } = report;
 
@@ -119,23 +117,16 @@ export const GradeResultCard: React.FC<GradeResultCardProps> = ({
         <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
           <div className="text-xs text-slate-500 flex items-center gap-2">
             <Clock className="w-4 h-4 text-slate-400" />
-            <span>Dokumen Skor UTS Digital &bull; Dicetak: {new Date().toLocaleDateString('id-ID')}</span>
+            <span>Dokumen Skor UTS Digital</span>
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
               onClick={onReset}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-sm transition-all cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
               Cari NIM Lain
-            </button>
-            <button
-              onClick={onPrint}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-md transition-all cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              Cetak Skor UTS (PDF)
             </button>
           </div>
         </div>

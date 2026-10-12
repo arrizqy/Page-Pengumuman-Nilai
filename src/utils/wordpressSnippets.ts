@@ -89,7 +89,6 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
       <div class="khs-card-footer">
         <div></div>
         <div class="khs-actions">
-          <button type="button" onclick="window.print()" class="khs-btn-print">&#128424; Cetak Skor UTS</button>
           <button type="button" id="khs-btn-reset" onclick="window.khsResetCari&&window.khsResetCari();" class="khs-btn-reset">&#8635; Cari NIM Lain</button>
         </div>
       </div>
