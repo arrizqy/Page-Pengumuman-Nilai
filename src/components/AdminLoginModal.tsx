@@ -98,7 +98,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
               className="w-full px-3.5 py-2.5 text-sm border-2 border-slate-200 rounded-xl outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
             />
             <span className="block text-[11px] text-slate-400 mt-1">
-              Akun default: <strong>admin</strong> / <strong>admin123</strong>
+              Akun staf default: <strong>admin</strong> / <strong>admin123</strong>
             </span>
           </div>
 

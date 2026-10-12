@@ -13,6 +13,14 @@ import {
   parseCSV, 
   processSheetData 
 } from './utils/googleSheets';
+import { 
+  getInitialGoogleSheetConfig, 
+  saveConfigToStorage, 
+  loadSettingsFromStorage, 
+  saveSettingsToStorage, 
+  updateUrlWithSheetId, 
+  fetchStaticSheetConfig 
+} from './utils/persistence';
 import { Navbar } from './components/Navbar';
 import { StudentLookup } from './components/StudentLookup';
 import { GradeResultCard } from './components/GradeResultCard';
@@ -29,24 +37,31 @@ import {
   CheckCircle2, 
   FileCode,
   ShieldCheck,
-  Lock
+  Lock,
+  Wifi
 } from 'lucide-react';
+
+const DEFAULT_CONFIG: GoogleSheetConfig = {
+  sheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+  gid: '0',
+  sheetName: 'Sheet1',
+  mode: 'demo',
+  isRealTime: true,
+  autoRefreshInterval: 60,
+  lastFetchedAt: 'Data Bawaan',
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'portal' | 'config' | 'export' | 'guide'>('portal');
   const [wpPreviewMode, setWpPreviewMode] = useState(false);
-  const [settings, setSettings] = useState<UniversitySettings>(DEFAULT_UNIVERSITY_SETTINGS);
+  const [settings, setSettings] = useState<UniversitySettings>(() => loadSettingsFromStorage(DEFAULT_UNIVERSITY_SETTINGS));
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   
-  const [config, setConfig] = useState<GoogleSheetConfig>({
-    sheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
-    gid: '0',
-    sheetName: 'Sheet1',
-    mode: 'demo',
-    isRealTime: true,
-    autoRefreshInterval: 60,
-    lastFetchedAt: 'Data Bawaan',
+  // Resolve initial config from URL search params (?sheet=...), localStorage, or Netlify env
+  const [config, setConfig] = useState<GoogleSheetConfig>(() => {
+    const resolved = getInitialGoogleSheetConfig(DEFAULT_CONFIG);
+    return resolved.config;
   });
 
   const [studentReports, setStudentReports] = useState<Record<string, StudentReport>>(MOCK_STUDENT_REPORTS);
@@ -59,22 +74,30 @@ export default function App() {
   const availableNims = Object.keys(studentReports);
 
   // Real-time synchronization handler
-  const syncWithGoogleSheet = useCallback(async (sheetIdToUse?: string) => {
+  const syncWithGoogleSheet = useCallback(async (sheetIdToUse?: string, gidToUse?: string) => {
     const targetId = sheetIdToUse || config.sheetId;
+    const targetGid = gidToUse || config.gid || '0';
     if (!targetId || config.mode === 'demo') return;
 
     setIsLoading(true);
     try {
-      const csvText = await fetchGoogleSheetCsv(targetId, config.gid || '0');
+      const csvText = await fetchGoogleSheetCsv(targetId, targetGid);
       const parsed = parseCSV(csvText);
       const reports = processSheetData(parsed, settings.kkmUts || 70);
 
       if (Object.keys(reports).length > 0) {
         setStudentReports(reports);
-        setConfig(prev => ({
-          ...prev,
+        const updatedConfig: GoogleSheetConfig = {
+          ...config,
+          sheetId: targetId,
+          gid: targetGid,
+          mode: 'public_csv',
           lastFetchedAt: new Date().toLocaleTimeString('id-ID'),
-        }));
+        };
+        setConfig(updatedConfig);
+        saveConfigToStorage(updatedConfig);
+        updateUrlWithSheetId(targetId, targetGid);
+
         setSyncToast(`Tersinkronisasi: ${Object.keys(reports).length} mahasiswa terdeteksi.`);
         setTimeout(() => setSyncToast(null), 3000);
       }
@@ -83,16 +106,42 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [config.sheetId, config.gid, config.mode, settings.kkmUts]);
+  }, [config, settings.kkmUts]);
 
-  // Initial load or mode change
+  // Check static /sheet-config.json for deployments like Netlify where admin deployed static config file
   useEffect(() => {
-    if (config.mode === 'public_csv') {
+    if (config.mode === 'demo') {
+      fetchStaticSheetConfig().then((staticCfg) => {
+        if (staticCfg && staticCfg.sheetId) {
+          const updated: GoogleSheetConfig = {
+            ...config,
+            sheetId: staticCfg.sheetId,
+            gid: staticCfg.gid || '0',
+            mode: 'public_csv',
+            lastFetchedAt: 'Tersambung via sheet-config.json',
+          };
+          setConfig(updated);
+          saveConfigToStorage(updated);
+          updateUrlWithSheetId(staticCfg.sheetId, staticCfg.gid || '0');
+          syncWithGoogleSheet(staticCfg.sheetId, staticCfg.gid || '0');
+        }
+      });
+    }
+  }, []);
+
+  // Sync when config mode is public_csv or changes
+  useEffect(() => {
+    if (config.mode === 'public_csv' && config.sheetId) {
       syncWithGoogleSheet();
     } else {
       setStudentReports(MOCK_STUDENT_REPORTS);
     }
-  }, [config.mode, syncWithGoogleSheet]);
+  }, [config.mode, config.sheetId]);
+
+  // Save settings when changed
+  useEffect(() => {
+    saveSettingsToStorage(settings);
+  }, [settings]);
 
   // Search by NIM handler
   const handleSearch = async (nim: string): Promise<boolean> => {
@@ -101,7 +150,7 @@ export default function App() {
     setSearchError(null);
 
     // If real-time mode, ensure we have freshest data
-    if (config.mode === 'public_csv') {
+    if (config.mode === 'public_csv' && config.sheetId) {
       try {
         const csvText = await fetchGoogleSheetCsv(config.sheetId, config.gid || '0');
         const parsed = parseCSV(csvText);
@@ -166,6 +215,18 @@ export default function App() {
         <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
           Publikasi khusus skor nilai angka Ujian Tengah Semester (UTS) mahasiswa Fakultas Kedokteran. Masukkan NIM resmi Anda di bawah ini untuk melihat skor angka dan mencetak lembar hasil evaluasi UTS.
         </p>
+
+        {/* Real-Time Database Connection Badge */}
+        {config.mode === 'public_csv' && (
+          <div className="pt-1">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Basis Data Google Sheet Terhubung Real-Time
+              <span className="text-slate-300">&bull;</span>
+              <span className="text-slate-500">Update: {config.lastFetchedAt}</span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Main Student Search Component */}
@@ -217,6 +278,9 @@ export default function App() {
             setIsAdminLoggedIn(false);
             setActiveTab('portal');
             setWpPreviewMode(false);
+            // Sesi admin berakhir, tetapi koneksi basis data Google Sheet tetap aktif untuk mahasiswa
+            setSyncToast('Logout berhasil. Data spreadsheet tetap aktif untuk mahasiswa.');
+            setTimeout(() => setSyncToast(null), 3000);
           }}
         />
       </div>
@@ -316,7 +380,16 @@ export default function App() {
             setSettings={setSettings}
             sheetId={config.sheetId}
             onSheetIdChange={(newId) => {
-              setConfig(prev => ({ ...prev, sheetId: newId, mode: newId ? 'public_csv' : 'demo' }));
+              const updatedConfig: GoogleSheetConfig = { 
+                ...config, 
+                sheetId: newId, 
+                mode: newId ? 'public_csv' : 'demo' 
+              };
+              setConfig(updatedConfig);
+              saveConfigToStorage(updatedConfig);
+              if (newId) {
+                updateUrlWithSheetId(newId, config.gid || '0');
+              }
             }}
           />
         )}

@@ -380,6 +380,19 @@ export function generateWordPressHTMLSnippet(settings: UniversitySettings, sheet
   var SHEET_ID = '${cleanId}';
   var SHEET_GID = '${gid || '0'}';
 
+  // Otomatis cek parameter URL (?sheet=... atau ?id=...) agar bisa diakses multi-device
+  try {
+    var urlParams = new URLSearchParams(window.location.search);
+    var paramSheet = urlParams.get('sheet') || urlParams.get('sheetId') || urlParams.get('id');
+    if (paramSheet && paramSheet.trim().length > 10) {
+      SHEET_ID = paramSheet.trim();
+    }
+    var paramGid = urlParams.get('gid');
+    if (paramGid) {
+      SHEET_GID = paramGid.trim();
+    }
+  } catch(e) {}
+
   // Cadangan data offline Fakultas Kedokteran jika Google Sheet belum terhubung/dibatasi
   var FALLBACK_MED_DATA = [
     ['NIM','Nama','Program Studi','Fakultas','Semester','Nama Mata Kuliah','Nilai UTS'],

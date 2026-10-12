@@ -1,13 +1,13 @@
 import { StudentReport, UniversitySettings } from '../types';
 
 export const DEFAULT_UNIVERSITY_SETTINGS: UniversitySettings = {
-  namaUniversitas: 'UNIVERSITAS NUSANTARA MANDIRI',
+  namaUniversitas: 'UNIVERSITAS DIPONEGORO',
   namaFakultas: 'FAKULTAS KEDOKTERAN',
   namaSistem: 'Portal Pengumuman Nilai UTS Fakultas Kedokteran',
-  tahunAkademik: '2024/2025',
+  tahunAkademik: '2026/2027',
   semesterAktif: 'Semester Ganjil',
-  kontakBantuan: '+62 812-3456-7890 (Sekretariat Akademik FK)',
-  emailBantuan: 'akademik.fk@universitas-nusantara.ac.id',
+  kontakBantuan: '',
+  emailBantuan: '',
   kkmUts: 70,
 };
 

@@ -154,7 +154,18 @@ export const GuideSection: React.FC = () => {
               3. Apakah tampilan ini responsif di HP (smartphone)?
             </h5>
             <p className="text-slate-600 mt-1 text-xs leading-relaxed">
-              Ya, 100% responsif mobile-friendly. Tabel dilengkapi fitur <em>horizontal scroll container</em> yang halus sehingga tidak akan merusak layout layar smartphone mahasiswa berukuran kecil.
+              Ya, 100% responsif mobile-friendly. Tabel skor angka UTS dilengkapi fitur <em>horizontal scroll container</em> yang halus sehingga tidak akan merusak layout layar smartphone mahasiswa berukuran kecil.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+            <h5 className="font-bold text-blue-900">
+              4. Bagaimana cara agar spreadsheet bisa diakses di perangkat lain (HP mahasiswa) dan tidak hilang saat logout?
+            </h5>
+            <p className="text-slate-700 mt-1 text-xs leading-relaxed">
+              <strong>1. Bebas Logout:</strong> Saat Anda logout dari admin, koneksi spreadsheet tetap aktif dan data tetap bisa dilihat oleh mahasiswa di perangkat tersebut.<br />
+              <strong>2. Akses Multi-Device:</strong> Bagikan <strong>Link Publik</strong> (tersedia di tab Konfigurasi Google Sheet, contoh: <code>https://domain-anda.netlify.app/?sheet=ID_SHEET</code>) ke mahasiswa via WhatsApp/Website. Semua HP dan komputer yang membuka link tersebut akan otomatis terhubung ke spreadsheet Anda.<br />
+              <strong>3. Netlify Environment Variable:</strong> Anda juga dapat menambahkan <code>VITE_SHEET_ID</code> di pengaturan Netlify Site Settings &rarr; Environment variables agar domain utama otomatis terhubung selamanya.
             </p>
           </div>
         </div>
