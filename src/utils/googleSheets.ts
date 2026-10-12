@@ -63,15 +63,28 @@ export function processSheetData(rows: string[][], kkmUts: number = 70): Record<
 
   const headers = rows[0].map(h => normalizeHeader(h));
 
-  // Find column indices
+  // Find column indices with strict disambiguation between Nama Mahasiswa and Nama Mata Kuliah
   const nimIdx = headers.findIndex(h => h.includes('nim') || h.includes('nomorinduk') || h.includes('studentid'));
-  const namaIdx = headers.findIndex(h => h.includes('nama') || h.includes('mahasiswa') || h.includes('studentname'));
+  
+  // Matkul column: prioritizes matakuliah, matkul, course, subject, mk
+  let matkulIdx = headers.findIndex(h => h.includes('matakuliah') || h.includes('matkul') || h.includes('course') || h.includes('subject'));
+  
+  // Student Name column: prioritizes namamahasiswa, mahasiswa, student, or 'nama' (that is NOT matakuliah)
+  let namaIdx = headers.findIndex(h => (h.includes('mahasiswa') || h.includes('student') || h === 'nama' || h === 'namalengkap') && !h.includes('matakuliah') && !h.includes('matkul'));
+  if (namaIdx === -1) {
+    namaIdx = headers.findIndex(h => h.includes('nama') && !h.includes('matakuliah') && !h.includes('matkul'));
+  }
+  
+  // If matkulIdx still not found, search other remaining name column
+  if (matkulIdx === -1) {
+    matkulIdx = headers.findIndex((h, idx) => idx !== namaIdx && (h.includes('mata') || h.includes('mk') || h.includes('kuliah')));
+  }
+
   const prodiIdx = headers.findIndex(h => h.includes('prodi') || h.includes('programstudi') || h.includes('jurusan'));
   const fakultasIdx = headers.findIndex(h => h.includes('fakultas') || h.includes('dept'));
   const semesterIdx = headers.findIndex(h => h.includes('semester') || h.includes('smt'));
   const thnAkademikIdx = headers.findIndex(h => h.includes('tahun') || h.includes('akademik') || h.includes('thnakad'));
   const kodeMatkulIdx = headers.findIndex(h => h.includes('kodematkul') || h.includes('kode') || h.includes('kdmatkul'));
-  const matkulIdx = headers.findIndex(h => h.includes('matakuliah') || h.includes('matkul') || h.includes('course') || h.includes('nama'));
   const sksIdx = headers.findIndex(h => h.includes('sks') || h.includes('kredit') || h.includes('credit'));
   
   // Specific UTS column search: prioritizing "nilaiuts", "skoruts", "uts", then generic "skor" or "nilai"
